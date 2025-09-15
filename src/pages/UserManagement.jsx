@@ -169,12 +169,12 @@ const UserManagement = () => {
             className="w-full outline-none text-gray-700 dark:text-gray-200 bg-transparent"
           />
         </div>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
-        >
-          Refresh Users
-        </button>
+      <button
+  onClick={fetchUsers}
+  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+>
+  Refresh Users
+</button>
       </div>
 
       {/* Users Table */}
