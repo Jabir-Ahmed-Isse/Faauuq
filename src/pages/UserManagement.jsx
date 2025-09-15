@@ -11,7 +11,7 @@ import axios from 'axios';
 
 const ITEMS_PER_PAGE = 10;
 
-// ✅ Axios instance with adminToken auto-injected
+// Axios instance with adminToken
 const API = axios.create({
   baseURL: 'https://faaruuqbooks.onrender.com',
   headers: { 'Content-Type': 'application/json' }
@@ -26,9 +26,7 @@ API.interceptors.request.use(config => {
 API.interceptors.response.use(
   res => res,
   err => {
-    if (err.response?.status === 401) {
-      console.error("Unauthorized: adminToken may be expired or invalid.");
-    }
+    if (err.response?.status === 401) console.error("Unauthorized: adminToken may be expired or invalid.");
     return Promise.reject(err);
   }
 );
@@ -37,38 +35,29 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingUser, setEditingUser] = useState(null); // Role update modal
-  const [deletingUser, setDeletingUser] = useState(null); // Delete confirmation
+  const [editingUser, setEditingUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // ✅ Fetch all users on mount — FIXED: Runs on every render mount!
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const limit = ITEMS_PER_PAGE;
-        const skip = (currentPage - 1) * limit;
-        let url = `/api/v1/users?limit=${limit}&skip=${skip}`;
+  // Fetch users
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await API.get('/api/v1/users');
+      setUsers(res.data || []);
+      setError('');
+    } catch (err) {
+      console.error("Fetch users error:", err);
+      setError('Failed to load users. Please refresh or check admin token.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        if (searchTerm) {
-          url += `&search=${encodeURIComponent(searchTerm)}`;
-        }
+  useEffect(() => { fetchUsers(); }, []);
 
-        const res = await API.get(url);
-        setUsers(res.data.users || []);
-        setError('');
-      } catch (err) {
-        console.error("Fetch users error:", err);
-        setError('Failed to load users. Please refresh or check admin token.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, [currentPage, searchTerm]); // Only re-fetch when page/search changes
-
-  // ✅ Filter users by search term
+  // Filter users
   const filteredUsers = useMemo(() => {
     if (!searchTerm) return users;
     return users.filter(user =>
@@ -81,56 +70,37 @@ const UserManagement = () => {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
-  };
-
-  const startEditRole = (user) => setEditingUser(user);
+  const goToPage = page => { if (page >= 1 && page <= totalPages) setCurrentPage(page); };
+  const startEditRole = user => setEditingUser(user);
   const closeEditRole = () => setEditingUser(null);
-
-  const confirmDelete = (user) => setDeletingUser(user);
+  const confirmDelete = user => setDeletingUser(user);
   const cancelDelete = () => setDeletingUser(null);
 
-  // ✅ Update user role
   const handleUpdateRole = async (newRole) => {
     if (!editingUser) return;
-
     try {
       const res = await API.put(`/api/v1/users/${editingUser._id}/role`, { role: newRole });
       setUsers(prev => prev.map(u => u._id === editingUser._id ? res.data : u));
       closeEditRole();
-    } catch (err) {
-      setError('Failed to update role. Try again.');
-    }
+    } catch (err) { setError('Failed to update role. Try again.'); }
   };
 
-  // ✅ Delete user
   const handleDeleteUser = async () => {
     if (!deletingUser) return;
-
-    if (!window.confirm(`Are you sure you want to delete ${deletingUser.name}? This cannot be undone.`)) return;
-
+    if (!window.confirm(`Are you sure you want to delete ${deletingUser.name}?`)) return;
     try {
       await API.delete(`/api/v1/users/${deletingUser._id}`);
       setUsers(prev => prev.filter(u => u._id !== deletingUser._id));
       cancelDelete();
-    } catch (err) {
-      setError('Failed to delete user. This user may have active orders.');
-    }
+    } catch (err) { setError('Failed to delete user.'); }
   };
 
-  // Role badge component
   const RoleBadge = ({ role }) => {
     const colors = {
       admin: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
       user: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
     };
-
-    const labels = {
-      admin: 'Admin',
-      user: 'User',
-    };
-
+    const labels = { admin: 'Admin', user: 'User' };
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${colors[role]}`}>
         {role === 'admin' && <CheckIcon className="w-3 h-3" />}
@@ -139,13 +109,11 @@ const UserManagement = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-lg text-gray-600 dark:text-gray-300">Loading users...</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex justify-center items-center h-64">
+      <p className="text-lg text-gray-600 dark:text-gray-300">Loading users...</p>
+    </div>
+  );
 
   return (
     <div className="space-y-6 p-4">
@@ -157,7 +125,7 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* Search + Refresh Button */}
+      {/* Search + Refresh */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow max-w-md w-full">
           <MagnifyingGlassIcon className="w-5 h-5 text-gray-500" />
@@ -169,12 +137,12 @@ const UserManagement = () => {
             className="w-full outline-none text-gray-700 dark:text-gray-200 bg-transparent"
           />
         </div>
-      <button
-  onClick={fetchUsers}
-  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
->
-  Refresh Users
-</button>
+        <button
+          onClick={fetchUsers}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+        >
+          Refresh Users
+        </button>
       </div>
 
       {/* Users Table */}
@@ -184,46 +152,47 @@ const UserManagement = () => {
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-300">Name</th>
-                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-300">Email</th>
                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-300">Role</th>
                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-300">Joined</th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-300">Last Login</th>
                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-300">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {paginatedUsers.length > 0 ? (
-                paginatedUsers.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                    <td className="px-6 py-4 text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                      <UserIcon className="w-5 h-5 text-gray-400" />
-                      {user.name || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-800 dark:text-gray-200 text-sm">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <RoleBadge role={user.role} />
-                    </td>
-                    <td className="px-6 py-4 text-gray-800 dark:text-gray-200 text-sm">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => startEditRole(user)}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400"
-                        aria-label="Update role"
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => confirmDelete(user)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400"
-                        aria-label="Delete user"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+              {paginatedUsers.length > 0 ? paginatedUsers.map((user) => (
+                <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                  <td className="px-6 py-4 flex items-center gap-3 text-gray-800 dark:text-gray-200">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold uppercase">
+                      {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium hover:underline cursor-pointer">{user.name || 'Unknown'}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{user.email}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4"><RoleBadge role={user.role} /></td>
+                  <td className="px-6 py-4 text-sm text-gray-800 dark:text-gray-200">{new Date(user.createdAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800 dark:text-gray-200">
+                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium space-x-2">
+                    <button
+                      onClick={() => startEditRole(user)}
+                      className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400"
+                      aria-label="Update role"
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(user)}
+                      className="text-red-600 hover:text-red-900 dark:text-red-400"
+                      aria-label="Delete user"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              )) : (
                 <tr>
                   <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     {searchTerm ? `No users found for "${searchTerm}"` : "No users available"}
@@ -234,6 +203,7 @@ const UserManagement = () => {
           </table>
         </div>
 
+        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-gray-700">
             <div className="text-sm text-gray-700 dark:text-gray-300">
@@ -251,11 +221,7 @@ const UserManagement = () => {
                 <button
                   key={i + 1}
                   onClick={() => goToPage(i + 1)}
-                  className={`w-8 h-8 rounded text-sm shadow ${
-                    currentPage === i + 1
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
+                  className={`w-8 h-8 rounded text-sm shadow ${currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                 >
                   {i + 1}
                 </button>
@@ -272,7 +238,7 @@ const UserManagement = () => {
         )}
       </div>
 
-      {/* ✅ UPDATE ROLE MODAL */}
+      {/* Edit Role Modal */}
       {editingUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg w-full max-w-md">
@@ -295,21 +261,13 @@ const UserManagement = () => {
             <div className="grid grid-cols-2 gap-2 mb-6">
               <button
                 onClick={() => handleUpdateRole('user')}
-                className={`p-3 rounded-lg text-sm font-medium transition ${
-                  editingUser.role === 'user'
-                    ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'
-                }`}
+                className={`p-3 rounded-lg text-sm font-medium transition ${editingUser.role === 'user' ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'}`}
               >
                 <RoleBadge role="user" />
               </button>
               <button
                 onClick={() => handleUpdateRole('admin')}
-                className={`p-3 rounded-lg text-sm font-medium transition ${
-                  editingUser.role === 'admin'
-                    ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/30'
-                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'
-                }`}
+                className={`p-3 rounded-lg text-sm font-medium transition ${editingUser.role === 'admin' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/30' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'}`}
               >
                 <RoleBadge role="admin" />
               </button>
@@ -327,7 +285,7 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* ✅ DELETE CONFIRMATION MODAL */}
+      {/* Delete Confirmation Modal */}
       {deletingUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg w-full max-w-md">
