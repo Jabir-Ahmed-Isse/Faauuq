@@ -205,7 +205,7 @@ const Books = () => {
                 paginatedBooks.map((book) => (
                   <tr key={book._id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
                     <td className="px-6 py-4 text-gray-800 dark:text-gray-200">
-                      {book._id}
+                      {book.title}
                     </td>
                     <td className="px-6 py-4 text-gray-800 dark:text-gray-200">
                       {book.author}
