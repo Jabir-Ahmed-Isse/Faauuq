@@ -3,7 +3,7 @@ import { FaBars, FaTimes, FaShoppingCart } from "react-icons/fa";
 import { FiSearch } from "react-icons/fi";
 import { MdOutlineExplore } from "react-icons/md";
 import logo from "../assets/images/logo.jpg";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CartSidebar from "./CartSidebar";
 
 const Header = ({ cartCount = 0, isDarkMode, toggleDarkMode }) => {
@@ -124,8 +124,7 @@ const Header = ({ cartCount = 0, isDarkMode, toggleDarkMode }) => {
                 </li>
               </>
             ) : (
-              <li><a href="/signin" className="hover:text-blue-700 dark:hover:text-blue-400 text-gray-700 dark:text-gray-300">Sign in</a></li>
-            )}
+<li><Link to="/signin" className="hover:text-blue-700 dark:hover:text-blue-400 text-gray-700 dark:text-gray-300">Sign in</Link></li>            )}
 
             {/* Cart Button */}
             <li>
